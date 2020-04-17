@@ -1,23 +1,12 @@
 #ifndef PING_UTILS_H
 #define PING_UTILS_H
 
-#include <stdio.h>
-#include <errno.h>
-#include <sys/time.h>
-
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/file.h>
-
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netdb.h>
-
 #include <arpa/inet.h>
+#include <stdio.h>
 #include <strings.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/ip_icmp.h>
 #include <zconf.h>
 
 namespace ping {
@@ -25,9 +14,11 @@ namespace ping {
 
     uint16_t in_cksum(icmp *addr, int len);
 
-    bool is_ipv4_address(const char *addr);
+    void encode_icmp(icmp *buffer, int type, int seqno, int id);
 
-    bool is_ipv6_address(const char *addr);
+    bool is_ipv4_address(const char *);
+
+    bool is_ipv6_address(const char *);
 }
 
 #endif //PING_UTILS_H

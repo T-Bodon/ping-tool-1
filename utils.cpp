@@ -54,6 +54,14 @@ uint16_t ping::in_cksum(icmp *addr, int len) {
     return (answer);
 }
 
+void ping::encode_icmp(icmp *icp, int type, int seqno, int id) {
+    icp->icmp_type = ICMP_ECHO;
+    icp->icmp_code = 0;
+    icp->icmp_cksum = 0;
+    icp->icmp_seq = seqno;
+    icp->icmp_id = id;
+}
+
 bool ping::is_ipv4_address(const char *addr) {
     sockaddr_in sa{};
     return inet_pton(AF_INET, addr, &(sa.sin_addr)) != 0;
