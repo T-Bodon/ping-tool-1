@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#include <vector>
+
 unsigned short ping::icmp_cksum(unsigned char *addr, int len) {
     int sum = 0;
     unsigned short answer = 0;
@@ -55,11 +57,19 @@ uint16_t ping::in_cksum(icmp *addr, int len) {
 }
 
 void ping::encode_icmp(icmp *icp, int type, int seqno, int id) {
-    icp->icmp_type = ICMP_ECHO;
+    icp->icmp_type = type;
     icp->icmp_code = 0;
     icp->icmp_cksum = 0;
     icp->icmp_seq = seqno;
     icp->icmp_id = id;
+}
+
+void ping::encode_icmp(icmp6_hdr *icp, int type, int seqno, int id) {
+    icp->icmp6_type = type;
+    icp->icmp6_code = 0;
+    icp->icmp6_cksum = 0;
+    icp->icmp6_seq = seqno;
+    icp->icmp6_id = id;
 }
 
 bool ping::is_ipv4_address(const char *addr) {
@@ -68,6 +78,11 @@ bool ping::is_ipv4_address(const char *addr) {
 }
 
 bool ping::is_ipv6_address(const char *addr) {
-    sockaddr_in sa{};
-    return inet_pton(AF_INET6, addr, &(sa.sin_addr)) != 0;
+    sockaddr_in6 sa{};
+    return inet_pton(AF_INET6, addr, &(sa.sin6_addr)) != 0;
+}
+
+int ping::send(int socket, const void *buf, size_t n, int flags, sockaddr *sin, socklen_t len) {
+    int code = sendto(socket, buf, n, 0, sin, len);
+    return code;
 }
