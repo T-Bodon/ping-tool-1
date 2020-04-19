@@ -15,6 +15,7 @@
 namespace ping {
     struct tag_ipv4 {
         using sin_t = sockaddr_in;
+        using addr_t = in_addr;
         using icmp_t = icmp;
         const static int af = AF_INET;
         const static int protocol = IPPROTO_ICMP;
@@ -24,6 +25,7 @@ namespace ping {
 
     struct tag_ipv6 {
         using sin_t = sockaddr_in6;
+        using addr_t = in6_addr;
         using icmp_t = icmp;
         const static int af = AF_INET6;
         const static int protocol = IPPROTO_ICMPV6;
@@ -33,13 +35,13 @@ namespace ping {
 
     unsigned short icmp_cksum(unsigned char *addr, int len);
 
-    void encode_icmp(icmp *buffer, int type, int seqno, int id, unsigned char *outpack, int len);
+    void encode_icmp(icmp *buffer, int type, int seqno, int id);
 
-    void encode_icmp(icmp6_hdr *buffer, int type, int seqno, int id, unsigned char *outpack, int len);
+    void encode_icmp(icmp6_hdr *buffer, int type, int seqno, int id);
 
-    void * sin_get_addr(sockaddr_in *);
+    void *sin_get_addr(sockaddr_in *);
 
-    void * sin_get_addr(sockaddr_in6 *);
+    void *sin_get_addr(sockaddr_in6 *);
 
     void sin_set_family(sockaddr_in *, int);
 

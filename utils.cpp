@@ -22,7 +22,7 @@ unsigned short ping::icmp_cksum(unsigned char *addr, int len) {
     return answer;
 }
 
-void ping::encode_icmp(icmp *icp, int type, int seqno, int id, unsigned char *outpack, int len) {
+void ping::encode_icmp(icmp *icp, int type, int seqno, int id) {
     icp->icmp_type = type;
     icp->icmp_code = 0;
     icp->icmp_cksum = 0;
@@ -30,7 +30,7 @@ void ping::encode_icmp(icmp *icp, int type, int seqno, int id, unsigned char *ou
     icp->icmp_id = id;
 }
 
-void ping::encode_icmp(icmp6_hdr *icp, int type, int seqno, int id, unsigned char *outpack, int len) {
+void ping::encode_icmp(icmp6_hdr *icp, int type, int seqno, int id) {
     icp->icmp6_type = type;
     icp->icmp6_code = 0;
     icp->icmp6_cksum = 0;
