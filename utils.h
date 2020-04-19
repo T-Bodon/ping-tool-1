@@ -9,24 +9,41 @@
 #include <netinet/icmp6.h>
 #include <zconf.h>
 
-namespace ping {
-    struct tag_ipv4;
+#include <arpa/inet.h>
+#include <netdb.h>
 
-    struct tag_ipv6;
+namespace ping {
+    struct tag_ipv4 {
+        using sin_t = sockaddr_in;
+        using icmp_t = icmp;
+        const static int af = AF_INET;
+        const static int protocol = IPPROTO_ICMP;
+        const static int icmp_query_type = ICMP_ECHO;
+        const static socklen_t pack_len = INET_ADDRSTRLEN;
+    };
+
+    struct tag_ipv6 {
+        using sin_t = sockaddr_in6;
+        using icmp_t = icmp;
+        const static int af = AF_INET6;
+        const static int protocol = IPPROTO_ICMPV6;
+        const static int icmp_query_type = ICMP6_ECHO_REQUEST;
+        const static socklen_t pack_len = INET6_ADDRSTRLEN;
+    };
 
     unsigned short icmp_cksum(unsigned char *addr, int len);
 
-    uint16_t in_cksum(icmp *addr, int len);
+    void encode_icmp(icmp *buffer, int type, int seqno, int id, unsigned char *outpack, int len);
 
-    void encode_icmp(icmp *buffer, int type, int seqno, int id);
+    void encode_icmp(icmp6_hdr *buffer, int type, int seqno, int id, unsigned char *outpack, int len);
 
-    void encode_icmp(icmp6_hdr *buffer, int type, int seqno, int id);
+    void * sin_get_addr(sockaddr_in *);
 
-    bool is_ipv4_address(const char *);
+    void * sin_get_addr(sockaddr_in6 *);
 
-    bool is_ipv6_address(const char *);
+    void sin_set_family(sockaddr_in *, int);
 
-    int send(int socket, const void * buf, size_t n, int flags, sockaddr *sin, socklen_t len);
+    void sin_set_family(sockaddr_in6 *, int);
 }
 
 #endif //PING_UTILS_H

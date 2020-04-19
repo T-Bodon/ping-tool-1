@@ -22,41 +22,7 @@ unsigned short ping::icmp_cksum(unsigned char *addr, int len) {
     return answer;
 }
 
-uint16_t ping::in_cksum(icmp *addr, int len) {
-    int nleft = len;
-    u_short *w = reinterpret_cast<u_short *>(addr);
-    u_short answer;
-    int sum = 0;
-
-    /*
-     *  Our algorithm is simple, using a 32 bit accumulator (sum),
-     *  we add sequential 16 bit words to it, and at the end, fold
-     *  back all the carry bits from the top 16 bits into the lower
-     *  16 bits.
-     */
-    while (nleft > 1) {
-        sum += *w++;
-        nleft -= 2;
-    }
-
-    /* mop up an odd byte, if necessary */
-    if (nleft == 1) {
-        u_short u = 0;
-
-        *(u_char *) (&u) = *(u_char *) w;
-        sum += u;
-    }
-
-    /*
-     * add back carry outs from top 16 bits to low 16 bits
-     */
-    sum = (sum >> 16) + (sum & 0xffff);    /* add hi 16 to low 16 */
-    sum += (sum >> 16);            /* add carry */
-    answer = ~sum;                /* truncate to 16 bits */
-    return (answer);
-}
-
-void ping::encode_icmp(icmp *icp, int type, int seqno, int id) {
+void ping::encode_icmp(icmp *icp, int type, int seqno, int id, unsigned char *outpack, int len) {
     icp->icmp_type = type;
     icp->icmp_code = 0;
     icp->icmp_cksum = 0;
@@ -64,7 +30,7 @@ void ping::encode_icmp(icmp *icp, int type, int seqno, int id) {
     icp->icmp_id = id;
 }
 
-void ping::encode_icmp(icmp6_hdr *icp, int type, int seqno, int id) {
+void ping::encode_icmp(icmp6_hdr *icp, int type, int seqno, int id, unsigned char *outpack, int len) {
     icp->icmp6_type = type;
     icp->icmp6_code = 0;
     icp->icmp6_cksum = 0;
@@ -72,17 +38,18 @@ void ping::encode_icmp(icmp6_hdr *icp, int type, int seqno, int id) {
     icp->icmp6_id = id;
 }
 
-bool ping::is_ipv4_address(const char *addr) {
-    sockaddr_in sa{};
-    return inet_pton(AF_INET, addr, &(sa.sin_addr)) != 0;
+void *ping::sin_get_addr(sockaddr_in *sin) {
+    return &(sin->sin_addr);
 }
 
-bool ping::is_ipv6_address(const char *addr) {
-    sockaddr_in6 sa{};
-    return inet_pton(AF_INET6, addr, &(sa.sin6_addr)) != 0;
+void *ping::sin_get_addr(sockaddr_in6 *sin6) {
+    return &(sin6->sin6_addr);
 }
 
-int ping::send(int socket, const void *buf, size_t n, int flags, sockaddr *sin, socklen_t len) {
-    int code = sendto(socket, buf, n, 0, sin, len);
-    return code;
+void ping::sin_set_family(sockaddr_in *sin, int af) {
+    sin->sin_family = af;
+}
+
+void ping::sin_set_family(sockaddr_in6 *sin6, int af) {
+    sin6->sin6_family = af;
 }
