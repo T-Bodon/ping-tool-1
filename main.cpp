@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
                             quiet = true;
                             break;
                         default: {
-                            std::cerr << "Invalid args";
+                            std::cerr << usage;
                             return argc;
                         }
                     }

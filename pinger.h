@@ -227,17 +227,22 @@ private:
         socklen_t tmp = sizeof(ttl);
         getsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, &tmp);
 
+        uint64_t time_diff = 0;
+        if (timing) {
+            time_t send_time{};
+            memcpy(&send_time, &icp->icmp_data[0], sizeof(time_t));
+            auto rtt = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - send_time);
+            time_diff = rtt.count();
+            total_time += time_diff;
+        }
+
         if (!quiet) {
             std::cout << len - hlen << " bytes"
                       << " from " << pack_from << ": "
                       << "icmp_seq=" << icp->icmp_seq
                       << " ttl=" << ttl;
             if (timing) {
-                time_t send_time{};
-                memcpy(&send_time, &icp->icmp_data[0], sizeof(time_t));
-                auto rtt = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - send_time);
-                total_time += rtt.count();
-                std::cout << " time=" << rtt.count();
+                std::cout << " time=" << time_diff << "ms";
             }
             std::cout << std::endl;
         }
@@ -249,7 +254,7 @@ private:
         std::cout << transmitted << " packets transmitted, " << lost << " packets lost." << std::endl
                   << errors << " total errors";
         if (timing) {
-            std::cout << ", " << total_time << "ms total time.";
+            std::cout << ", " << total_time << "ms total time";
         }
         std::cout << std::endl;
     }
