@@ -7,10 +7,8 @@
 #include <netdb.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
+#include <poll.h>
 #include <zconf.h>
-
-#include <arpa/inet.h>
-#include <netdb.h>
 
 namespace ping {
     struct tag_ipv4 {

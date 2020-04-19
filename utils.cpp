@@ -1,7 +1,5 @@
 #include "utils.h"
 
-#include <vector>
-
 unsigned short ping::icmp_cksum(unsigned char *addr, int len) {
     int sum = 0;
     unsigned short answer = 0;

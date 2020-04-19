@@ -1,8 +1,8 @@
 #ifndef PING_PINGER_H
 #define PING_PINGER_H
 
+#include <chrono>
 #include <iostream>
-#include <poll.h>
 #include <string>
 
 #include "utils.h"
@@ -14,9 +14,10 @@ private:
     using sin_t = typename IPV::sin_t;
     using addr_t = typename IPV::addr_t;
     using icmp_t = typename IPV::icmp_t;
+    using time_t = std::chrono::steady_clock::time_point;
 
     static const size_t MAXPACKET = 4096;
-    char packet[MAXPACKET]{};
+    char packet[MAXPACKET];
 
     sockaddr_storage sin{};
     sockaddr_storage from{};
@@ -28,18 +29,22 @@ private:
     void *sinv_addr;
 
     const int datalen = 64 - 8;
+    const int timeout = 1000;  // timeout in ms for send and receive
     int sock = -1;
     int ident;
 
-    int errors = 0;
-    int ntransmitted = 0;
-    int lost = 0;
+    uint64_t total_time = 0;
+    int32_t errors = 0;
+    int32_t transmitted = 0;
+    int32_t lost = 0;
 
 public:
     explicit pinger(const char *host, int ttl = -1, bool debug = false, bool dontroute = false) : hostname(host) {
         sin_t *sinv = (sin_t *) (&sin);
         sinv_addr = ping::sin_get_addr(sinv);
+        ping::sin_set_family(sinv, IPV::af);
 
+        // resolve
         addrinfo hints{AI_ADDRCONFIG, IPV::af, SOCK_RAW, IPV::protocol};
         addrinfo *res = nullptr;
         addrinfo *node = nullptr;
@@ -47,17 +52,20 @@ public:
         if (code < 0) {
             throw ping_error("Failed dns resolving");
         }
-        for (node = res; node && sock < 0; node = node->ai_next) {
+        for (node = res; node; node = node->ai_next) {
             if (node->ai_family == IPV::af) {
                 memcpy(sinv_addr, ping::sin_get_addr((sin_t *) (node->ai_addr)), sizeof(addr_t));
-                sock = socket(IPV::af, SOCK_RAW, IPV::protocol);
+                break;
             }
         }
         freeaddrinfo(res);
-        ping::sin_set_family(sinv, IPV::af);
+
+        // socket with opts
+        sock = socket(IPV::af, SOCK_RAW, IPV::protocol);
         if (sock < 0) {
             throw ping_error("Failed open connection");
         }
+
         if (ttl != -1) {
             if (setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0) {
                 throw ping_error("Failed to set ttl.");
@@ -75,6 +83,7 @@ public:
                 throw ping_error("Failed to SO_DONTROUTE.");
             }
         }
+
         poll_send.fd = poll_recv.fd = sock;
         ident = getpid() & 0xFFFF;
     }
@@ -92,8 +101,8 @@ public:
 
     void print_stats() const {
         std::cout << "--- " << hostname << " ping stats ---" << std::endl;
-        std::cout << ntransmitted << " packets transmitted, " << lost << " packets lost. "
-                  << errors << " total errors." << std::endl;
+        std::cout << transmitted << " packets transmitted, " << lost << " packets lost." << std::endl
+                  << errors << " total errors, " << total_time << "ms total time." << std::endl;
     }
 
 private:
@@ -111,20 +120,24 @@ private:
         return process_packet(code);
     }
 
-    int send() {
+    [[nodiscard]] int send() {
         static u_char outpack[MAXPACKET];
         icmp_t *icp = (icmp_t *) outpack;
 
-        u_char *datap = &outpack[8 + sizeof(struct timeval)];
-        for (int i = 8; i < datalen; i++)    /* skip 8 for time */
-            *datap++ = i;
+        time_t cur_time = std::chrono::steady_clock::now();
+        memcpy(&outpack[8], &cur_time, sizeof(time_t));
 
-        int cc = datalen + 8;            /* skips ICMP portion */
-        ping::encode_icmp(icp, IPV::icmp_query_type, ++ntransmitted, ident);
+        u_char *datap = &outpack[8 + sizeof(time_t)];
+        for (int i = 8; i < datalen; i++) {
+            *datap++ = i;
+        }
+
+        int cc = datalen + 8;
+        ping::encode_icmp(icp, IPV::icmp_query_type, ++transmitted, ident);
         icp->icmp_cksum = ping::icmp_cksum(outpack, cc);
 
-        if (poll(&poll_send, 1, 1000) != 1) {
-            std::cerr << "poll failed";
+        if (poll(&poll_send, 1, timeout) != 1) {
+            std::cerr << "Send timeout" << std::endl;
             return -1;
         }
         int code = sendto(sock, outpack, cc, 0, (sockaddr *) &sin, sizeof(sin_t));
@@ -138,16 +151,18 @@ private:
         return code;
     }
 
-    int receive() {
+    [[nodiscard]] int receive() {
         socklen_t fromlen = sizeof(sin_t);
-        if (poll(&poll_recv, 1, 1000) != 1) {
+        if (poll(&poll_recv, 1, timeout) != 1) {
             std::cerr << "Receive timeout" << std::endl;
             return -1;
         }
         return recvfrom(sock, packet, MAXPACKET, 0, (sockaddr *) (&from), &fromlen);
     }
 
-    int process_packet(int len) {
+    [[nodiscard]] int process_packet(int len) {
+        time_t cur_time = std::chrono::steady_clock::now();
+
         ip *pack_ip = (ip *) packet;
         int hlen = pack_ip->ip_hl << 2;
 
@@ -162,13 +177,21 @@ private:
 
         icmp_t *icp = (icmp_t *) (packet + hlen);
         if (icp->icmp_id != ident) return 0;
+
         int ttl = -1;
         socklen_t tmp = sizeof(ttl);
         getsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, &tmp);
+
+        time_t send_time{};
+        memcpy(&send_time, &icp->icmp_data[0], sizeof(time_t));
+        auto rtt = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - send_time);
+        total_time += rtt.count();
+
         std::cout << len - hlen << " bytes"
                   << " from " << pack_from << ": "
                   << "icmp_seq=" << icp->icmp_seq
                   << " ttl=" << ttl
+                  << " time=" << rtt.count()
                   << std::endl;
         return 0;
     }
