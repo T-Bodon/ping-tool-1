@@ -1,6 +1,5 @@
 PLEASE, BE SURE YOU RUN IT WITH SUDO
-
-EXAMPLE: sudo ./pinger -c 10 google.com
+EXAMPLE: sudo ./ping -c 10 google.com
 
 Pinger class provides opportunities to:
 
