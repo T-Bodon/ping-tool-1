@@ -1,7 +1,7 @@
 # What is it?
 
-Please write a small Ping CLI application for Linux.
-The CLI app should accept a hostname or an IP address as its argument, then send ICMP "echo requests" in a loop to the target while receiving "echo reply" messages.
+Small Ping CLI application for Linux.
+Accepts a hostname or an IP address as its argument, then sends ICMP "echo requests" in a loop to the target while receiving "echo reply" messages.
 
 - reports loss and RTT times for each sent message.
 - supports IPv4 and IPv6
